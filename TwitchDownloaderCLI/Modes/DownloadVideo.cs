@@ -16,7 +16,7 @@ namespace TwitchDownloaderCLI.Modes
     {
         internal static void Download(VideoDownloadArgs inputOptions)
         {
-            var progress = new CliTaskProgress(inputOptions.LogLevel);
+            var progress = CliTaskProgressFactory.Create(inputOptions.LogLevel, inputOptions.ProgressReportStream, inputOptions.ProgressReportFormat);
 
             FfmpegHandler.DetectFfmpeg(inputOptions.FfmpegPath, progress);
 

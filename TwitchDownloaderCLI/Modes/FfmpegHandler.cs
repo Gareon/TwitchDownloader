@@ -19,7 +19,7 @@ namespace TwitchDownloaderCLI.Modes
 
         public static void ParseArgs(FfmpegArgs args)
         {
-            var progress = new CliTaskProgress(args.LogLevel);
+            var progress = CliTaskProgressFactory.Create(args.LogLevel, args.ProgressReportStream, args.ProgressReportFormat);
 
             if (args.DownloadFfmpeg)
             {

@@ -100,8 +100,9 @@ namespace TwitchDownloaderCLI.Tools
                 {
                     return;
                 }
-
-                WriteJsonProgress(_status, percent, time1, time2);
+                
+                var status = string.Format(_status, percent);
+                WriteJsonProgress(status, percent, time1, time2);
                 
                 _lastPercent = percent;
                 _lastTime1 = time1;

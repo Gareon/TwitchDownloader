@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Runtime.CompilerServices;
 using TwitchDownloaderCLI.Models;
 using TwitchDownloaderCore.Interfaces;
@@ -24,13 +25,16 @@ namespace TwitchDownloaderCLI.Tools
         private TimeSpan _lastTime2 = new(-1);
 
         private readonly LogLevel _logLevel;
+        private readonly TextWriter _console;
 
-        public CliTaskProgress(LogLevel logLevel)
+        public CliTaskProgress(LogLevel logLevel, TextWriter console = null)
         {
             if ((logLevel & LogLevel.None) == 0)
             {
                 _logLevel = logLevel;
             }
+            
+            _console = console ?? Console.Out;
         }
 
         public void SetStatus(string status)
@@ -57,7 +61,7 @@ namespace TwitchDownloaderCLI.Tools
 
                 if (!_lastWriteHadNewLine)
                 {
-                    Console.WriteLine();
+                    _console.WriteLine();
                 }
 
                 _lastPercent = -1; // Ensure that the progress report runs
@@ -76,7 +80,7 @@ namespace TwitchDownloaderCLI.Tools
 
                 if (!_lastWriteHadNewLine)
                 {
-                    Console.WriteLine();
+                    _console.WriteLine();
                 }
 
                 _lastPercent = -1; // Ensure that the progress report runs
@@ -130,11 +134,11 @@ namespace TwitchDownloaderCLI.Tools
         {
             if (!_lastWriteHadNewLine)
             {
-                Console.Write('\r');
+                _console.Write('\r');
             }
 
-            Console.Write(preamble);
-            Console.Write(message);
+            _console.Write(preamble);
+            _console.Write(message);
 
             var messageLength = preamble.Length + message.Length;
             if (messageLength < previousMessageLength)
@@ -142,7 +146,7 @@ namespace TwitchDownloaderCLI.Tools
                 // Ensure that the previous line is completely overwritten
                 for (var i = 0; i < previousMessageLength - messageLength; i++)
                 {
-                    Console.Write(' ');
+                    _console.Write(' ');
                 }
             }
 
@@ -243,11 +247,11 @@ namespace TwitchDownloaderCLI.Tools
         {
             if (!_lastWriteHadNewLine)
             {
-                Console.WriteLine();
+                _console.WriteLine();
             }
 
-            Console.Write(preamble);
-            Console.WriteLine(message);
+            _console.Write(preamble);
+            _console.WriteLine(message);
             _lastWriteHadNewLine = true;
         }
 
@@ -256,7 +260,7 @@ namespace TwitchDownloaderCLI.Tools
             if (!_lastWriteHadNewLine)
             {
                 // Some shells don't like when an application exits without writing a newline to the end of stdout
-                Console.WriteLine();
+                _console.WriteLine();
                 _lastWriteHadNewLine = true;
             }
         }

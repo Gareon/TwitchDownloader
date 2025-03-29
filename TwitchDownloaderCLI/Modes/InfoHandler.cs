@@ -16,6 +16,7 @@ using TwitchDownloaderCore.Extensions;
 using TwitchDownloaderCore.Interfaces;
 using TwitchDownloaderCore.Tools;
 using TwitchDownloaderCore.TwitchObjects.Gql;
+using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace TwitchDownloaderCLI.Modes
 {
@@ -23,7 +24,7 @@ namespace TwitchDownloaderCLI.Modes
     {
         public static void PrintInfo(InfoArgs inputOptions)
         {
-            var progress = new CliTaskProgress(inputOptions.LogLevel);
+            var progress = new CliTaskProgress(inputOptions.LogLevel, inputOptions.Format == InfoPrintFormat.Json ? Console.Error : Console.Out);
             SetUtf8Encoding(inputOptions.UseUtf8.GetValueOrDefault(), progress);
 
             var vodClipIdMatch = IdParse.MatchVideoOrClipId(inputOptions.Id);
@@ -61,7 +62,7 @@ namespace TwitchDownloaderCLI.Modes
                     HandleVodM3U8(playlistString);
                     break;
                 case InfoPrintFormat.Json:
-                    HandleVodJson();
+                    HandleVodJson(videoInfo, chapters, playlistString);
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
@@ -202,9 +203,108 @@ namespace TwitchDownloaderCLI.Modes
             Console.Write(m3u8.ToString());
         }
 
-        private static void HandleVodJson()
+        private static void HandleVodJson(GqlVideoResponse videoInfo, GqlVideoChapterResponse chapters, string playlistString)
         {
-            throw new NotImplementedException("JSON format is not yet supported");
+            var m3u8 = M3U8.Parse(playlistString);
+            m3u8.SortStreamsByQuality();
+
+            using var jsonWriter = new Utf8JsonWriter(Console.OpenStandardOutput(), new JsonWriterOptions { Indented = false });
+
+            jsonWriter.WriteStartObject();
+
+#region Video Info
+
+            jsonWriter.WritePropertyName("videoInfo");
+            jsonWriter.WriteStartObject();
+
+            jsonWriter.WritePropertyName("streamer");
+            jsonWriter.WriteStartObject();
+            jsonWriter.WriteString("displayName", videoInfo.data.video.owner.displayName);
+            jsonWriter.WriteString("login", videoInfo.data.video.owner.login);
+            jsonWriter.WriteEndObject();
+
+            jsonWriter.WriteString("title", videoInfo.data.video.title);
+
+            jsonWriter.WriteNumber("lengthSeconds", videoInfo.data.video.lengthSeconds);
+
+            jsonWriter.WriteString("category", videoInfo.data.video.game?.displayName);
+
+            jsonWriter.WriteNumber("views", videoInfo.data.video.viewCount);
+
+            jsonWriter.WriteString("createdAt", videoInfo.data.video.createdAt.ToUniversalTime().ToString("O"));
+
+            jsonWriter.WriteString("description", videoInfo.data.video.description?.Replace("  \n", "\n").Replace("\n\n", "\n").TrimEnd());
+
+            jsonWriter.WriteEndObject();
+
+#endregion
+
+#region Chapters
+
+            jsonWriter.WritePropertyName("chapters");
+            jsonWriter.WriteStartArray();
+            
+            foreach (var chapter in chapters.data.video.moments.edges)
+            {
+                jsonWriter.WriteStartObject();
+                jsonWriter.WriteString("category", chapter.node.details.game?.displayName);
+                jsonWriter.WriteString("type", chapter.node._type);
+                jsonWriter.WriteNumber("startMilliseconds", chapter.node.positionMilliseconds);
+                jsonWriter.WriteNumber("endMilliseconds", chapter.node.positionMilliseconds + chapter.node.durationMilliseconds);
+                jsonWriter.WriteNumber("lengthMilliseconds", chapter.node.durationMilliseconds);
+                jsonWriter.WriteEndObject();
+            }
+            
+            jsonWriter.WriteEndArray();
+#endregion
+
+#region Playlist
+
+            jsonWriter.WritePropertyName("playlist");
+            jsonWriter.WriteStartArray();
+
+
+            foreach (var stream in m3u8.Streams)
+            {
+                jsonWriter.WriteStartObject();
+                
+                jsonWriter.WriteString("name", stream.GetResolutionFramerateString());
+
+                jsonWriter.WritePropertyName("resolution");
+                jsonWriter.WriteStartObject();
+                jsonWriter.WriteNumber("width", stream.StreamInfo.Resolution.Width);
+                jsonWriter.WriteNumber("height", stream.StreamInfo.Resolution.Height);
+                jsonWriter.WriteEndObject();
+
+                jsonWriter.WriteNumber("fps", stream.StreamInfo.Framerate);
+
+                jsonWriter.WritePropertyName("codecs");
+                jsonWriter.WriteStartArray();
+                foreach(var codec in stream.StreamInfo.Codecs)
+                {
+                    jsonWriter.WriteStringValue(codec);
+                }
+                jsonWriter.WriteEndArray();
+                
+                if (stream.StreamInfo.Bandwidth != 0)
+                {
+                    var videoLength = TimeSpan.FromSeconds(videoInfo.data.video.lengthSeconds);
+                    var bitrate = stream.StreamInfo.Bandwidth / 1000;
+                    var fileSize = VideoSizeEstimator.EstimateVideoSize(stream.StreamInfo.Bandwidth, TimeSpan.Zero, videoLength);
+                    jsonWriter.WriteNumber("bitrate", bitrate);
+                    jsonWriter.WriteNumber("estimatedFileSize", fileSize);
+                }
+
+                jsonWriter.WriteEndObject();
+            }
+
+            jsonWriter.WriteEndArray();
+#endregion
+            
+            jsonWriter.WriteEndObject();
+
+            jsonWriter.Flush();
+            Console.Out.WriteLine();
         }
 
         private static void HandleClip(InfoArgs inputOptions, ITaskProgress progress)

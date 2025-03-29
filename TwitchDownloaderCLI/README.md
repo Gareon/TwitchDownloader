@@ -34,6 +34,12 @@ Also can concatenate/combine/merge Transport Stream files, either those parts do
 **--log-level**
 (Default: `Status,Info,Warning,Error`) Sets the log level flags. Applicable values are: `None`, `Status`, `Verbose`, `Info`, `Warning`, `Error`, `Ffmpeg`. When `None` is passed, any other log level flags are ignored and `--banner=false` is implied. See [Enum flags](#enum-flag-arguments) for more help.
 
+**--progress-report-format**
+(Default: `Default`) Sets the format of the progress report. Applicable values are: `Default`, `Json`. When `Json` is passed, each report is printed as a JSON object per line and is intended for automated processing.
+
+**--progress-report-stream**
+(Default: `Out`) Sets the console stream to write the progress report to. Applicable values are: `Out`, `Error`.
+
 ## Arguments for mode videodownload
 #### Downloads a stream VOD or highlight from Twitch
 

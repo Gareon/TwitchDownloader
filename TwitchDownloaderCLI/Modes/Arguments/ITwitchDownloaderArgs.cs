@@ -14,7 +14,7 @@ namespace TwitchDownloaderCLI.Modes.Arguments
         [Option("progress-report-format", Default = ProgressReportFormat.Default, HelpText = "Sets the format of the progress report. Applicable values are: Default, Json.")]
         public ProgressReportFormat ProgressReportFormat { get; set; }
         
-        [Option("progress-report-stream", Default = ProgressReportStream.Out, HelpText = "Sets the stream to write the progress report to. Applicable values are: Out, Error.")]
+        [Option("progress-report-stream", Default = ProgressReportStream.Out, HelpText = "Sets the console stream to write the progress report to. Applicable values are: Out, Error.")]
         public ProgressReportStream ProgressReportStream { get; set; }
     }
 }

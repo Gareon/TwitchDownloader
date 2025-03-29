@@ -16,5 +16,7 @@ namespace TwitchDownloaderCLI.Modes.Arguments
         public OverwriteBehavior OverwriteBehavior { get; set; }
         public bool? ShowBanner { get; set; }
         public LogLevel LogLevel { get; set; }
+        public ProgressReportFormat ProgressReportFormat { get; set; }
+        public ProgressReportStream ProgressReportStream { get; set; }
     }
 }

@@ -14,7 +14,7 @@ namespace TwitchDownloaderCLI.Modes
     {
         internal static void Download(ChatDownloadArgs inputOptions)
         {
-            var progress = new CliTaskProgress(inputOptions.LogLevel);
+            var progress = CliTaskProgressFactory.Create(inputOptions.LogLevel, inputOptions.ProgressReportStream, inputOptions.ProgressReportFormat);
 
             var collisionHandler = new FileCollisionHandler(inputOptions, progress);
             var downloadOptions = GetDownloadOptions(inputOptions, collisionHandler, progress);

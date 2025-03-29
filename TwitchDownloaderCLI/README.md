@@ -439,6 +439,10 @@ Display the info about a clip in raw format
 
     ./TwitchDownloaderCLI info --id NurturingCalmHamburgerVoHiYo --format raw
 
+Display the info about a VOD in json format for automated processing
+
+    ./TwitchDownloaderCLI info --id 612942303 --format table --banner false --progress-report-format Json --progress-report-stream Out
+
 Render a chat with custom FFmpeg arguments
 
     ./TwitchDownloaderCLI chatrender -i chat.json --output-args='-c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p "{save_path}"' -o chat.mp4

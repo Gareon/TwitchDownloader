@@ -1,0 +1,11 @@
+﻿{
+  "solution": {
+    "path": "TwitchDownloaderWPF.sln",
+    "projects": [
+      "TwitchDownloaderCLI.Tests\\TwitchDownloaderCLI.Tests.csproj",
+      "TwitchDownloaderCLI\\TwitchDownloaderCLI.csproj",
+      "TwitchDownloaderCore.Tests\\TwitchDownloaderCore.Tests.csproj",
+      "TwitchDownloaderCore\\TwitchDownloaderCore.csproj"
+    ]
+  }
+}

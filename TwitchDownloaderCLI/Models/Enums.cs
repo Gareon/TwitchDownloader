@@ -15,6 +15,18 @@ namespace TwitchDownloaderCLI.Models
         Ffmpeg = 1 << 6,
     }
 
+    internal enum ProgressReportFormat
+    {
+        Default,
+        Json
+    }
+
+    internal enum ProgressReportStream
+    {
+        Out,
+        Error
+    }
+
     public enum OverwriteBehavior
     {
         Overwrite,

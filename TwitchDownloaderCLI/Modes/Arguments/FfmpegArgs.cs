@@ -12,5 +12,7 @@ namespace TwitchDownloaderCLI.Modes.Arguments
         // Interface args
         public bool? ShowBanner { get; set; }
         public LogLevel LogLevel { get; set; }
+        public ProgressReportFormat ProgressReportFormat { get; set; }
+        public ProgressReportStream ProgressReportStream { get; set; }
     }
 }

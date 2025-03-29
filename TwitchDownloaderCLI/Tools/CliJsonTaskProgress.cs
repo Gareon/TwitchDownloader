@@ -1,36 +1,34 @@
 using System;
+using System.IO;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using TwitchDownloaderCLI.Models;
 using TwitchDownloaderCore.Interfaces;
 
 namespace TwitchDownloaderCLI.Tools
 {
-    internal class CliTaskProgress : ITaskProgress
+    internal class CliJsonTaskProgress : ITaskProgress
     {
-        private const string STATUS_PREAMBLE = "[STATUS] - ";
-        private const string VERBOSE_LOG_PREAMBLE = "[VERBOSE] - ";
-        private const string INFO_LOG_PREAMBLE = "[INFO] - ";
-        private const string WARNING_LOG_PREAMBLE = "[WARNING] - ";
-        private const string ERROR_LOG_PREAMBLE = "[ERROR] - ";
-        private const string FFMPEG_LOG_PREAMBLE = "<FFMPEG> ";
-
+        private static JsonSerializerOptions _jsonOptions = new() { WriteIndented = false, PropertyNamingPolicy = JsonNamingPolicy.CamelCase, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
         private string _status;
         private bool _statusIsTemplate;
 
-        private bool _lastWriteHadNewLine = true;
-        private int _lastStatusLength;
         private int _lastPercent = -1;
         private TimeSpan _lastTime1 = new(-1);
         private TimeSpan _lastTime2 = new(-1);
 
         private readonly LogLevel _logLevel;
+        private readonly TextWriter _console;
 
-        public CliTaskProgress(LogLevel logLevel)
+        public CliJsonTaskProgress(LogLevel logLevel, ProgressReportStream reportStream)
         {
             if ((logLevel & LogLevel.None) == 0)
             {
                 _logLevel = logLevel;
             }
+            
+            _console = reportStream switch { ProgressReportStream.Error => Console.Error, _ => Console.Out };
         }
 
         public void SetStatus(string status)
@@ -42,7 +40,7 @@ namespace TwitchDownloaderCLI.Tools
                 _status = status;
                 _statusIsTemplate = false;
 
-                WriteNewLineMessage(STATUS_PREAMBLE, status);
+                WriteJsonProgress(status, null, null, null);
             }
         }
 
@@ -54,11 +52,6 @@ namespace TwitchDownloaderCLI.Tools
             {
                 _status = status;
                 _statusIsTemplate = true;
-
-                if (!_lastWriteHadNewLine)
-                {
-                    Console.WriteLine();
-                }
 
                 _lastPercent = -1; // Ensure that the progress report runs
                 ReportProgress(initialPercent);
@@ -74,11 +67,6 @@ namespace TwitchDownloaderCLI.Tools
                 _status = status;
                 _statusIsTemplate = true;
 
-                if (!_lastWriteHadNewLine)
-                {
-                    Console.WriteLine();
-                }
-
                 _lastPercent = -1; // Ensure that the progress report runs
                 ReportProgress(initialPercent, initialTime1, initialTime2);
             }
@@ -90,16 +78,13 @@ namespace TwitchDownloaderCLI.Tools
 
             lock (this)
             {
-                if ((!_lastWriteHadNewLine && _lastPercent == percent)
+                if (_lastPercent == percent
                     || !_statusIsTemplate)
                 {
                     return;
                 }
 
-                var status = string.Format(_status, percent);
-                _lastStatusLength = WriteSameLineMessage(STATUS_PREAMBLE, status, _lastStatusLength);
-
-                _lastWriteHadNewLine = false;
+                WriteJsonProgress(_status, percent, null, null);
                 _lastPercent = percent;
             }
         }
@@ -110,52 +95,32 @@ namespace TwitchDownloaderCLI.Tools
 
             lock (this)
             {
-                if ((!_lastWriteHadNewLine && _lastPercent == percent && _lastTime1 == time1 && _lastTime2 == time2)
+                if ((_lastPercent == percent && _lastTime1 == time1 && _lastTime2 == time2)
                     || !_statusIsTemplate)
                 {
                     return;
                 }
 
-                var status = string.Format(_status, percent, time1, time2);
-                _lastStatusLength = WriteSameLineMessage(STATUS_PREAMBLE, status, _lastStatusLength);
-
-                _lastWriteHadNewLine = false;
+                WriteJsonProgress(_status, percent, time1, time2);
+                
                 _lastPercent = percent;
                 _lastTime1 = time1;
                 _lastTime2 = time2;
             }
         }
 
-        private int WriteSameLineMessage(string preamble, string message, int previousMessageLength)
+        private void WriteJsonProgress(string status, int? percent, TimeSpan? elapsed, TimeSpan? eta)
         {
-            if (!_lastWriteHadNewLine)
-            {
-                Console.Write('\r');
-            }
-
-            Console.Write(preamble);
-            Console.Write(message);
-
-            var messageLength = preamble.Length + message.Length;
-            if (messageLength < previousMessageLength)
-            {
-                // Ensure that the previous line is completely overwritten
-                for (var i = 0; i < previousMessageLength - messageLength; i++)
-                {
-                    Console.Write(' ');
-                }
-            }
-
-            return messageLength;
+            _console.WriteLine(JsonSerializer.Serialize(new { Type = "Progress", Status = status, Percent = percent, Elapsed = elapsed, Eta = eta }, _jsonOptions));
         }
-
+        
         public void LogVerbose(string logMessage)
         {
             if ((_logLevel & LogLevel.Verbose) == 0) return;
 
             lock (this)
             {
-                WriteNewLineMessage(VERBOSE_LOG_PREAMBLE, logMessage);
+                WriteLogMessage(LogLevel.Verbose, logMessage);
             }
         }
 
@@ -165,7 +130,7 @@ namespace TwitchDownloaderCLI.Tools
 
             lock (this)
             {
-                WriteNewLineMessage(VERBOSE_LOG_PREAMBLE, logMessage.ToStringAndClear());
+                WriteLogMessage(LogLevel.Verbose, logMessage.ToStringAndClear());
             }
         }
 
@@ -175,7 +140,7 @@ namespace TwitchDownloaderCLI.Tools
 
             lock (this)
             {
-                WriteNewLineMessage(INFO_LOG_PREAMBLE, logMessage);
+                WriteLogMessage(LogLevel.Info, logMessage);
             }
         }
 
@@ -185,7 +150,7 @@ namespace TwitchDownloaderCLI.Tools
 
             lock (this)
             {
-                WriteNewLineMessage(INFO_LOG_PREAMBLE, logMessage.ToStringAndClear());
+                WriteLogMessage(LogLevel.Info, logMessage.ToStringAndClear());
             }
         }
 
@@ -195,7 +160,7 @@ namespace TwitchDownloaderCLI.Tools
 
             lock (this)
             {
-                WriteNewLineMessage(WARNING_LOG_PREAMBLE, logMessage);
+                WriteLogMessage(LogLevel.Warning, logMessage);
             }
         }
 
@@ -205,7 +170,7 @@ namespace TwitchDownloaderCLI.Tools
 
             lock (this)
             {
-                WriteNewLineMessage(WARNING_LOG_PREAMBLE, logMessage.ToStringAndClear());
+                WriteLogMessage(LogLevel.Warning, logMessage.ToStringAndClear());
             }
         }
 
@@ -215,7 +180,7 @@ namespace TwitchDownloaderCLI.Tools
 
             lock (this)
             {
-                WriteNewLineMessage(ERROR_LOG_PREAMBLE, logMessage);
+                WriteLogMessage(LogLevel.Error, logMessage);
             }
         }
 
@@ -225,7 +190,7 @@ namespace TwitchDownloaderCLI.Tools
 
             lock (this)
             {
-                WriteNewLineMessage(ERROR_LOG_PREAMBLE, logMessage.ToStringAndClear());
+                WriteLogMessage(LogLevel.Error, logMessage.ToStringAndClear());
             }
         }
 
@@ -235,30 +200,13 @@ namespace TwitchDownloaderCLI.Tools
 
             lock (this)
             {
-                WriteNewLineMessage(FFMPEG_LOG_PREAMBLE, logMessage);
+                WriteLogMessage(LogLevel.Ffmpeg, logMessage);
             }
         }
 
-        private void WriteNewLineMessage(string preamble, string message)
+        private void WriteLogMessage(LogLevel logLevel, string message)
         {
-            if (!_lastWriteHadNewLine)
-            {
-                Console.WriteLine();
-            }
-
-            Console.Write(preamble);
-            Console.WriteLine(message);
-            _lastWriteHadNewLine = true;
-        }
-
-        ~CliTaskProgress()
-        {
-            if (!_lastWriteHadNewLine)
-            {
-                // Some shells don't like when an application exits without writing a newline to the end of stdout
-                Console.WriteLine();
-                _lastWriteHadNewLine = true;
-            }
+            _console.WriteLine(JsonSerializer.Serialize(new { Type = "Log", Level = logLevel, Message = message }, _jsonOptions));
         }
     }
 }

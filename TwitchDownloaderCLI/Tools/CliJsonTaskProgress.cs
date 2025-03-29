@@ -10,7 +10,7 @@ namespace TwitchDownloaderCLI.Tools
 {
     internal class CliJsonTaskProgress : ITaskProgress
     {
-        private static JsonSerializerOptions _jsonOptions = new() { WriteIndented = false, PropertyNamingPolicy = JsonNamingPolicy.CamelCase, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
+        private static JsonSerializerOptions _jsonOptions = new() { WriteIndented = false, PropertyNamingPolicy = JsonNamingPolicy.CamelCase, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, Converters = { new JsonStringEnumConverter() }};
         private string _status;
         private bool _statusIsTemplate;
 
@@ -40,7 +40,7 @@ namespace TwitchDownloaderCLI.Tools
                 _status = status;
                 _statusIsTemplate = false;
 
-                WriteJsonProgress(status, null, null, null);
+                WriteLogMessage(LogLevel.Status, status, null, null, null);
             }
         }
 
@@ -84,7 +84,8 @@ namespace TwitchDownloaderCLI.Tools
                     return;
                 }
 
-                WriteJsonProgress(_status, percent, null, null);
+                var status = string.Format(_status, percent);
+                WriteLogMessage(LogLevel.Status, status, percent, null, null);
                 _lastPercent = percent;
             }
         }
@@ -101,18 +102,13 @@ namespace TwitchDownloaderCLI.Tools
                     return;
                 }
                 
-                var status = string.Format(_status, percent);
-                WriteJsonProgress(status, percent, time1, time2);
+                var status = string.Format(_status, percent, time1, time2);
+                WriteLogMessage(LogLevel.Status, status, percent, time1, time2);
                 
                 _lastPercent = percent;
                 _lastTime1 = time1;
                 _lastTime2 = time2;
             }
-        }
-
-        private void WriteJsonProgress(string status, int? percent, TimeSpan? elapsed, TimeSpan? eta)
-        {
-            _console.WriteLine(JsonSerializer.Serialize(new { Type = "Progress", Status = status, Percent = percent, Elapsed = elapsed, Eta = eta }, _jsonOptions));
         }
         
         public void LogVerbose(string logMessage)
@@ -205,9 +201,9 @@ namespace TwitchDownloaderCLI.Tools
             }
         }
 
-        private void WriteLogMessage(LogLevel logLevel, string message)
+        private void WriteLogMessage(LogLevel logLevel, string message, int? percent = null, TimeSpan? elapsed = null, TimeSpan? eta = null)
         {
-            _console.WriteLine(JsonSerializer.Serialize(new { Type = "Log", Level = logLevel, Message = message }, _jsonOptions));
+            _console.WriteLine(JsonSerializer.Serialize(new { Type = "Log", Level = logLevel, Message = message, Percent = percent, Elapsed = elapsed, Eta = eta  }, _jsonOptions));
         }
     }
 }
